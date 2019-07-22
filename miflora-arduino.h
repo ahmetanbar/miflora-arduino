@@ -1,17 +1,7 @@
-#include <SoftwareSerial.h>
-
-SoftwareSerial BTSerial(10,11); // RX | TX
+// HEX of "OK+DISA:".It is beginning of line.
 #define delimiter "4f4b2b444953413a"
-#define mac_address "C47C8D628AAC"
-int pos = 0;
-bool allowed = true;
-String returnedString = "";
-String temp = "";
-int count = 0;
-
-unsigned long timebt = 0;
-char datacloud[1000];
-
+// Define mac address of sensor. Change it with your own miflora's mac address.
+#define mac_address "R4ND0MR4ND0M"
 
 struct decompose{
   char subject[4];
@@ -21,7 +11,21 @@ struct decompose{
   char extract[60];
 };
 
+
 struct decompose d[6] = {{"mac",16,12,true},{"typ",28,2,false},{"rsi",30,2,false},{"rdl",32,2,false},{"sty",44,4,true},{"rda",34,60,false}};
+
+
+void revert_hex_data(char * in, char * out, int l){
+  //reverting array 2 by 2 to get the data in good order
+  int i = l-2 , j = 0; 
+  while ( i != -2 ) {
+    if (i%2 == 0) out[j] = in[i+1];
+    else  out[j] = in[i-1];
+    j++;
+    i--;
+  }
+  out[l-1] = '\0';
+}
 
 void extract_char(char * token_char, char * subset, int start ,int l, boolean reverse, boolean isNumber){
     char tmp_subset[l+1];
@@ -39,18 +43,6 @@ void extract_char(char * token_char, char * subset, int start ,int l, boolean re
       else strncpy( subset, tmp_subset , l+1);
     }
     subset[l] = '\0';
-}
-
-void revert_hex_data(char * in, char * out, int l){
-  //reverting array 2 by 2 to get the data in good order
-  int i = l-2 , j = 0; 
-  while ( i != -2 ) {
-    if (i%2 == 0) out[j] = in[i+1];
-    else  out[j] = in[i-1];
-    j++;
-    i--;
-  }
-  out[l-1] = '\0';
 }
 
 void strupp(char* beg)
@@ -89,7 +81,6 @@ boolean process_data(int offset, char * rest_data, char * mac_adress){
   // reverse data order
   revert_hex_data(rev_data, data, data_length);
   double value = strtol(data, NULL, 16);
-//  Serial.println(value);
   char val[12];
   String mactopic(mac_adress);
 
@@ -187,51 +178,4 @@ void parseit(String returnedString){
       }
     }
   }
-}
-
-
-
-void setup() 
-{
-  Serial.begin(115200);
-
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
-  
-//  Serial.println("Enter AT commands:");
-  BTSerial.begin(115200);
-  delay(2000);
-  Serial.println(millis());
-}
-
-void loop()
-{
-  if(allowed){
-    BTSerial.write("AT+DISA?");
-    count = 0;
-    timebt = millis();
-    allowed = false; 
-  }
-  
-  while (BTSerial.available()){
-    int a = BTSerial.read();
-    if (a < 16) {
-      temp = "0";      
-    }
-    temp = temp + String(a,HEX);
-    datacloud[count] = temp[0];
-    datacloud[count+1] = temp[1];
-    count+=2;
-    temp = "";
-  }
-
-  if(millis()>(timebt+8000)){
-    parseit(String(datacloud));
-    memset(datacloud, 0, sizeof datacloud);
-    allowed = true;
-   }
-   
- if (Serial.available())
-    BTSerial.write(Serial.read());
 }
